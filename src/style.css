@@ -1,0 +1,358 @@
+/* ─── Design tokens ──────────────────────────────────────────────
+   基准设计尺寸 1080×640。
+   --hpx = 1 设计横向像素对应的 vw 量
+   --vpx = 1 设计纵向像素对应的 vh 量
+   所有 px 数值都写成 calc(N * var(--hpx/--vpx))，让界面随屏幕自动伸缩。
+──────────────────────────────────────────────────────────────── */
+:root {
+  --color-table:    #2d5a3d;
+  --color-accent:   #e8682a;
+  --color-discard:  #a83232;
+  --color-gold:     #d4a017;
+  --color-card-red: #d33f3f;
+  --color-card-bg:  #fbfaf7;
+  --color-score:    #5dd67a;
+  --ease-card:      200ms ease;
+
+  --hpx: calc(100vw / 1080);
+  --vpx: calc(100vh / 640);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: #111;
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+}
+
+/* ── Game Viewport ───────────────────────────────────────────── */
+.game-viewport {
+  width: 100vw;
+  height: 100vh;
+  background: var(--color-table);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-image:
+    radial-gradient(ellipse at 50% 100%, rgba(0,0,0,.25) 0%, transparent 70%),
+    repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,.012) 20px, rgba(255,255,255,.012) 21px);
+}
+
+/* ── HUD ─────────────────────────────────────────────────────── */
+.hud {
+  display: flex;
+  align-items: center;
+  padding: 0 calc(24 * var(--hpx));
+  height: calc(64 * var(--vpx));
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  flex-shrink: 0;
+}
+.hud-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid rgba(255,255,255,.1);
+  padding: 0 calc(8 * var(--hpx));
+}
+.hud-item:last-child { border-right: none; }
+.hud-label {
+  font-size: calc(10 * var(--vpx));
+  color: rgba(255,255,255,.5);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.hud-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(22 * var(--vpx));
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  transition: transform .15s ease, color .3s ease;
+}
+.hud-value.bump     { transform: scale(1.25); }
+.hud-value.exhausted { color: rgba(255,255,255,.25) !important; }
+.hud-value.target   { color: var(--color-gold); }
+.hud-value.score    { color: var(--color-score); }
+.hud-value.plays    { color: var(--color-accent); }
+.hud-value.discards { color: #e06060; }
+
+/* ── Play Zone ───────────────────────────────────────────────── */
+.play-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.15);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  position: relative;
+  gap: calc(10 * var(--vpx));
+}
+
+.hand-type-badge {
+  background: rgba(232,104,42,.9);
+  color: #fff;
+  font-size: calc(13 * var(--vpx));
+  font-weight: 700;
+  padding: calc(5 * var(--vpx)) calc(20 * var(--hpx));
+  border-radius: 999px;
+  letter-spacing: .5px;
+  box-shadow: 0 2px 10px rgba(232,104,42,.5);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity .25s ease, transform .25s ease;
+  pointer-events: none;
+}
+.hand-type-badge.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.play-cards {
+  display: flex;
+  gap: calc(12 * var(--hpx));
+  align-items: center;
+  min-height: calc(128 * var(--vpx));
+}
+.play-placeholder {
+  height: calc(128 * var(--vpx));
+  aspect-ratio: 88 / 128;
+  border-radius: calc(12 * var(--vpx));
+  border: 2px dashed rgba(255,255,255,.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,.2);
+  font-size: calc(22 * var(--vpx));
+}
+.zone-hint {
+  font-size: calc(12 * var(--vpx));
+  color: rgba(255,255,255,.3);
+  letter-spacing: .5px;
+  transition: opacity .25s ease;
+}
+
+/* score pop-up */
+.score-popup {
+  position: absolute;
+  right: calc(28 * var(--hpx));
+  top: calc(12 * var(--vpx));
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(30 * var(--vpx));
+  font-weight: 700;
+  color: var(--color-score);
+  text-shadow: 0 2px 8px rgba(0,0,0,.4);
+  pointer-events: none;
+  opacity: 0;
+}
+.score-popup.show {
+  animation: floatUp 1.6s ease forwards;
+}
+@keyframes floatUp {
+  0%   { opacity: 1; transform: translateY(0); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-7.5vh); }
+}
+
+/* ── Hand Zone ───────────────────────────────────────────────── */
+.hand-zone {
+  padding: calc(14 * var(--vpx)) calc(24 * var(--hpx)) calc(10 * var(--vpx));
+  background: rgba(0,0,0,.2);
+  border-top: 1px solid rgba(255,255,255,.06);
+  flex-shrink: 0;
+}
+.hand-zone-label {
+  font-size: calc(10 * var(--vpx));
+  color: rgba(255,255,255,.38);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: calc(10 * var(--vpx));
+}
+.hand-cards {
+  display: flex;
+  gap: calc(10 * var(--hpx));
+  justify-content: center;
+}
+
+/* ── Action Bar ──────────────────────────────────────────────── */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--hpx));
+  justify-content: center;
+  padding: calc(13 * var(--vpx)) calc(24 * var(--hpx));
+  background: rgba(0,0,0,.3);
+  border-top: 1px solid rgba(255,255,255,.06);
+  flex-shrink: 0;
+}
+.hand-hint {
+  font-size: calc(13 * var(--vpx));
+  color: rgba(255,255,255,.4);
+  min-width: calc(130 * var(--hpx));
+  text-align: center;
+  font-weight: 600;
+  transition: color .2s;
+}
+.hand-hint.active { color: var(--color-accent); }
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--hpx));
+  border: none;
+  border-radius: 9999px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: calc(14 * var(--vpx));
+  font-weight: 700;
+  cursor: pointer;
+  padding: calc(10 * var(--vpx)) calc(28 * var(--hpx));
+  transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+  letter-spacing: .3px;
+}
+.btn:hover:not(:disabled) { transform: translateY(-2px); }
+.btn:active:not(:disabled) { transform: translateY(0); }
+.btn:disabled { opacity: .38; cursor: not-allowed; }
+
+.btn-play {
+  background: var(--color-accent);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(232,104,42,.45);
+}
+.btn-play:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(232,104,42,.65); }
+
+.btn-discard {
+  background: var(--color-discard);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(168,50,50,.4);
+}
+.btn-discard:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(168,50,50,.6); }
+
+.btn-restart {
+  background: transparent;
+  color: rgba(255,255,255,.65);
+  border: 1.5px solid rgba(255,255,255,.28);
+}
+.btn-restart:hover { border-color: rgba(255,255,255,.6); color: #fff; }
+
+/* ── Poker Card ──────────────────────────────────────────────── */
+.poker-card {
+  height: calc(118 * var(--vpx));
+  aspect-ratio: 82 / 118;
+  background: var(--color-card-bg);
+  border-radius: calc(12 * var(--vpx));
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2), 0 0 0 1px rgba(0,0,0,.08);
+  transition: transform var(--ease-card), box-shadow var(--ease-card);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+.poker-card:hover:not(.selected):not(.large) {
+  transform: translateY(calc(-4 * var(--vpx)));
+  box-shadow: 0 6px 16px rgba(0,0,0,.25);
+}
+.poker-card.selected {
+  transform: translateY(calc(-12 * var(--vpx)));
+  box-shadow: 0 0 0 2.5px var(--color-accent), 0 8px 20px rgba(232,104,42,.35);
+}
+.poker-card.disabled {
+  opacity: .38;
+  cursor: not-allowed;
+}
+
+.poker-card .corner {
+  position: absolute;
+  line-height: 1;
+  font-weight: 700;
+}
+.poker-card .corner.tl { top: calc(5 * var(--vpx));    left: calc(6 * var(--vpx)); }
+.poker-card .corner.br { bottom: calc(5 * var(--vpx)); right: calc(6 * var(--vpx)); transform: rotate(180deg); }
+.poker-card .corner .rank { font-size: calc(14 * var(--vpx)); display: block; }
+.poker-card .corner .suit { font-size: calc(11 * var(--vpx)); display: block; }
+.poker-card .center-suit {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: calc(40 * var(--vpx));
+  line-height: 1;
+}
+
+/* large variant for play zone */
+.poker-card.large {
+  height: calc(128 * var(--vpx));
+  aspect-ratio: 88 / 128;
+  cursor: default;
+}
+.poker-card.large .corner .rank { font-size: calc(16 * var(--vpx)); }
+.poker-card.large .corner .suit { font-size: calc(13 * var(--vpx)); }
+.poker-card.large .center-suit  { font-size: calc(48 * var(--vpx)); }
+.poker-card.large:hover { transform: none; box-shadow: 0 2px 8px rgba(0,0,0,.2), 0 0 0 1px rgba(0,0,0,.08); }
+
+.red-card   .corner, .red-card   .center-suit { color: var(--color-card-red); }
+.black-card .corner, .black-card .center-suit { color: #1a1a1a; }
+
+/* ── Result Overlay ──────────────────────────────────────────── */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s;
+}
+.overlay.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+.result-modal {
+  background: #0d0d0d;
+  border-radius: calc(16 * var(--hpx));
+  padding: calc(44 * var(--vpx)) calc(64 * var(--hpx));
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(10 * var(--vpx));
+  min-width: calc(320 * var(--hpx));
+}
+.result-modal.win  { border: 2px solid var(--color-gold); }
+.result-modal.lose { border: 2px solid #a83232; }
+
+.result-title {
+  font-size: calc(30 * var(--vpx));
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.result-modal.win  .result-title { color: var(--color-gold); }
+.result-modal.lose .result-title { color: #e06060; }
+
+.result-score {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(52 * var(--vpx));
+  font-weight: 700;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.result-sub {
+  font-size: calc(13 * var(--vpx));
+  color: rgba(255,255,255,.45);
+  margin-bottom: calc(12 * var(--vpx));
+}
